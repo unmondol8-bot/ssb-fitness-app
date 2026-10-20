@@ -1,0 +1,48 @@
+name: Taiyari Shuru APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Wipe Broken Manifest and Generate Fresh Android Platform
+        run: |
+          # Force wipe the corrupted android folder
+          rm -rf android
+          
+          # Let official Flutter recreate flawless Android XML & Gradle files
+          flutter create --platforms=android --org com.example --project-name ssb_cadet_app .
+          
+          # Add notification permissions directly into the newly generated, valid XML
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>' android/app/src/main/AndroidManifest.xml
+          
+          # Fetch packages
+          flutter pub get
+
+      - name: Build Android Release APK
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssb-cadet-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          
